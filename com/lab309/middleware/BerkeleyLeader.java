@@ -46,7 +46,7 @@ public class BerkeleyLeader {
 		try {
 			for (InetAddress addr : this.broadcastIp) {
 				UDPClient c = new UDPClient(this.port, addr, null);
-				c.send();
+				c.send(/*TODO define request message*/);
 				c.close();
 			}
 		} catch (IOException e) {
@@ -55,7 +55,7 @@ public class BerkeleyLeader {
 		
 		//receive time requests
 		s = new UDPServer(BerkeleyLeader.this.port, SizeConstants.sizeOfLong, null);
-		while (/*stop condition*/) {
+		while (/*TODO define stop condition*/) {
 			UDPDatagram dtg = s.receive();
 			int estimatedRtt = (clock.getTime()-startTime)/2;
 			slaves.add(new Slave(dtg.retrieveLong(), dtg.getSender(), estimatedRtt));
