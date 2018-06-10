@@ -18,8 +18,8 @@ public class TestClock {
 		return this.timestamp;
 	}
 	
-	public void adjustTime (long newTime) {
-		this.timestamp = newTime;
+	public void adjustTime (long timeOffset) {
+		this.timestamp += timeOffset;
 	}
 	
 	public void start () {
