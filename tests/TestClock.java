@@ -33,7 +33,7 @@ public class TestClock {
 					System.err.println("Clock interrupted");
 				}
 			}
-		}).start();
+		}}).start();
 	}
 	
 	public void stop () {
