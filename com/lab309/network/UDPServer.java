@@ -69,6 +69,8 @@ public class UDPServer implements Serializable {
 
 	public int getBufferSize () { return this.bufferPacket.getData().length; }
 	
+	public boolean isClosed () { return this.receiver.isClosed(); }
+	
 	/*SETTERS*/
 	public void setCipher (Cipher cipher) {
 		this.cipher = cipher;

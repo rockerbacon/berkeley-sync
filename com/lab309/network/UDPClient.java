@@ -44,6 +44,7 @@ public class UDPClient implements Serializable {
 		public int getPort () {
 			return this.boundPort;
 		}
+		public boolean isClosed() { return this.sender.isClosed(); }
 		
 		/*SETTERS*/
 		public void setCipher (Cipher cipher) {
