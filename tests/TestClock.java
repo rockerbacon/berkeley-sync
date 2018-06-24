@@ -1,11 +1,14 @@
 package tests;
 
-public class TestClock {
+import com.lab309.middleware.Clock;
+
+public class TestClock implements Clock{
 
 	private long timestamp;
 	private long updateInterval;
 	private long updateIncrement;
 	private boolean isRunning;
+	private Thread updateThread;
 
 	public TestClock (long beginningTime, long updateInterval, long updateIncrement) {
 		this.timestamp = beginningTime;
@@ -14,7 +17,8 @@ public class TestClock {
 		this.isRunning = false;
 	}
 	
-	public long getTime () {
+	@Override
+	public long getTimeMillis () {
 		return this.timestamp;
 	}
 	
