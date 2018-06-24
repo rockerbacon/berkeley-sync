@@ -16,7 +16,7 @@ import java.io.IOException;
 
 public class BerkeleyLeader {
 
-	private static final byte syncClockRequest = (byte)0x1F; 
+	/*package private*/ static final byte syncClockRequest = (byte)0x1F; 
 
 	private int port;
 	private LinkedList<InetAddress> broadcastIp;
