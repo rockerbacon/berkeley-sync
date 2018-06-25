@@ -50,9 +50,13 @@ public class UDPServer implements Serializable {
 		this(port, bufferSize, null, cipher);
 	}
 
-	public UDPServer (int bufferSize, Cipher cipher) throws IOException {
-		this.receiver = new DatagramSocket(null);
-		this.receiver.setReuseAddress(true);
+	public UDPServer (int bufferSize, Cipher cipher, boolean randomBind) throws IOException {
+		if (randomBind) {
+			this.receiver = new DatagramSocket();
+		} else {
+			this.receiver = new DatagramSocket(null);
+			this.receiver.setReuseAddress(true);
+		}
 		this.bufferPacket = new DatagramPacket(new byte[bufferSize], bufferSize);
 		this.boundAddress = null;
 		this.cipher = cipher;

@@ -16,7 +16,7 @@ import java.io.IOException;
 
 public class BerkeleyLeader {
 
-	/*package private*/ static final byte syncClockRequest = (byte)0x1F; 
+	/*package private*/ static final byte syncClockRequest = (byte)0x1F;
 
 	private int port;
 	private LinkedList<InetAddress> broadcastIp;
@@ -24,11 +24,13 @@ public class BerkeleyLeader {
 	private Clock clock;
 	
 	private class Slave {
+		public int port;
 		public long timeStamp;
 		public InetAddress address;
 		public long estimatedRtt;
 		
-		public Slave (long timeStamp, InetAddress address, long estimatedRtt) {
+		public Slave (int port, long timeStamp, InetAddress address, long estimatedRtt) {
+			this.port = port;
 			this.timeStamp = timeStamp;
 			this.address = address;
 			this.estimatedRtt = estimatedRtt;
@@ -39,6 +41,7 @@ public class BerkeleyLeader {
 		this.broadcastIp = NetInfo.broadcastIp();
 		this.answerTimeLimit = answerTimeLimit;
 		this.clock = clock;
+		this.port = port;
 	}
 	
 	public void sync () {
@@ -62,13 +65,18 @@ public class BerkeleyLeader {
 			}
 		
 			//receive time requests within time limit
-			s = new UDPServer(SizeConstants.sizeOfLong, null);
+			s = new UDPServer(SizeConstants.sizeOfInt+SizeConstants.sizeOfLong, null, false);
 			s.bind(BerkeleyLeader.this.port, null);
 			availableAnswerTime = this.answerTimeLimit;
 			beginTime = System.currentTimeMillis();
 			while ( (dtg = s.receiveOnTime((int)availableAnswerTime)) != null && availableAnswerTime > 0 ) {
 				long estimatedRtt = (clock.getTimeMillis()-startTime)/2;
-				slaves.add(new Slave(dtg.getBuffer().retrieveLong(), dtg.getSender(), estimatedRtt));
+				int port = dtg.getBuffer().retrieveInt();
+				long timestamp = dtg.getBuffer().retrieveLong();
+				slaves.add(new Slave(port, timestamp, dtg.getSender(), estimatedRtt));
+				
+				//System.out.println("Received timestamp "+timestamp);	//debug
+				
 				//calculate remaining answer time
 				endTime = System.currentTimeMillis();
 				availableAnswerTime -= endTime-beginTime;
@@ -76,21 +84,24 @@ public class BerkeleyLeader {
 			}
 			s.close();
 		
-			//calculate average time
-			avgTime = 0;
-			for (Slave slave : slaves) {
-				avgTime += slave.timeStamp;
-			}
-			avgTime /= slaves.size();
+			if (slaves.size() > 0) {
+				//calculate average time
+				avgTime = 0;
+				for (Slave slave : slaves) {
+					avgTime += slave.timeStamp;
+				}
+				avgTime /= slaves.size();
 		
-			//send offsets to slaves
-			dtg = new UDPDatagram(SizeConstants.sizeOfLong);
-			for (Slave slave : slaves) {
-				c = new UDPClient(this.port, slave.address, null);
-				dtg.getBuffer().pushLong(slave.timeStamp+slave.estimatedRtt+this.answerTimeLimit-avgTime);
-				c.send(dtg);
-				c.close();
-				dtg.getBuffer().rewind();
+				//send offsets to slaves
+				dtg = new UDPDatagram(SizeConstants.sizeOfByte+SizeConstants.sizeOfLong);
+				dtg.getBuffer().pushByte(BerkeleyLeader.syncClockRequest);
+				for (Slave slave : slaves) {
+					c = new UDPClient(slave.port, slave.address, null);
+					dtg.getBuffer().pushLong(avgTime-slave.timeStamp-slave.estimatedRtt);
+					c.send(dtg);
+					c.close();
+					dtg.getBuffer().rewind(SizeConstants.sizeOfLong);
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

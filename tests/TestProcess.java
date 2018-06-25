@@ -13,9 +13,9 @@ public class TestProcess {
 	private static int port = 50050;
 	private static long answerLimit = 300;
 	private static long inactivityLimit = 700;
-	private static long minUpdateInterval = 350, maxUpdateInterval = 400;
-	private static long minUpdateIncrement = 330, maxUpdateIncrement = 420;
-	private static long syncInterval = 500;
+	private static long minUpdateInterval = 1900, maxUpdateInterval = 2100;
+	private static float minUpdateIncrement = 0.9f, maxUpdateIncrement = 1.1f;
+	private static long syncInterval = 2000;
 
 	private TestClock clock;
 	private BerkeleySlave synchronizer;
@@ -25,10 +25,15 @@ public class TestProcess {
 		Random rnd = new Random();
 		return rnd.nextLong() % (max-min) + min;
 	}
+	private static float randomBetween (float min, float max) {
+		Random rnd = new Random();
+		return rnd.nextFloat()*(max-min)+min;
+	}
 
 	public TestProcess (boolean isLeader) {
 		try {
-			this.clock = new TestClock(0, randomBetween(minUpdateInterval, maxUpdateInterval), randomBetween(minUpdateIncrement, maxUpdateIncrement));
+			long updateInterval = randomBetween(minUpdateInterval, maxUpdateInterval);
+			this.clock = new TestClock(0, updateInterval, (long)(updateInterval*randomBetween(minUpdateIncrement, maxUpdateIncrement)));
 			this.synchronizer = new BerkeleySlave(TestProcess.port, TestProcess.inactivityLimit, this.clock);
 			if (isLeader) {
 				this.syncLeader = new BerkeleyLeader(TestProcess.port, TestProcess.answerLimit, this.clock);

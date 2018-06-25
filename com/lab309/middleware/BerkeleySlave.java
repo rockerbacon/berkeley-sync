@@ -17,6 +17,7 @@ public class BerkeleySlave {
 	int port;
 	Clock clock;
 	UDPServer s;
+	UDPServer s2;
 	
 	public BerkeleySlave (int port, long maxInactivityInterval, Clock clock) {
 		this.maxInactivityInterval = maxInactivityInterval;
@@ -31,29 +32,38 @@ public class BerkeleySlave {
 		new Thread ( new Runnable () {	@Override public void run () {		
 			UDPClient c = null;
 			try {
-				BerkeleySlave.this.s = new UDPServer(SizeConstants.sizeOfLong, null);
+				BerkeleySlave.this.s = new UDPServer(SizeConstants.sizeOfByte+SizeConstants.sizeOfLong, null, false);
 				BerkeleySlave.this.s.bind(port, null);
+				
+				BerkeleySlave.this.s2 = new UDPServer(SizeConstants.sizeOfLong, null, true);
+				
 				ByteBuffer requestMsg = new ByteBuffer(SizeConstants.sizeOfByte);
 				requestMsg.pushByte(BerkeleyLeader.syncClockRequest);
-				UDPDatagram dtg = new UDPDatagram(SizeConstants.sizeOfLong);
+				UDPDatagram dtg = new UDPDatagram(SizeConstants.sizeOfInt+SizeConstants.sizeOfLong);
+				dtg.getBuffer().pushInt(BerkeleySlave.this.s2.getPort());
 			
 				while (BerkeleySlave.this.syncing) {
 			
 					//send time upon request
 					UDPDatagram request = BerkeleySlave.this.s.receiveExpected(requestMsg.getByteArray()); //blocks until request message is received
 					BerkeleySlave.this.lastLeaderActivity = System.currentTimeMillis();	//update leader activity
+					
+					System.out.println("Received sync request at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
+					
 					c = new UDPClient(BerkeleySlave.this.port, request.getSender(), null);
-				
 					dtg.getBuffer().pushLong(BerkeleySlave.this.clock.getTimeMillis());
 					c.send(dtg);
 				
-					dtg.getBuffer().rewind();
+					dtg.getBuffer().rewind(SizeConstants.sizeOfLong);
 					c.close();
 				
 					//wait for answer and adjusts clock
-					request = BerkeleySlave.this.s.receive();
+					request = BerkeleySlave.this.s.receiveExpected(requestMsg.getByteArray());
 					BerkeleySlave.this.lastLeaderActivity = System.currentTimeMillis();	//update leader activity
-					BerkeleySlave.this.clock.adjustTime(request.getBuffer().retrieveLong());
+					long offset = request.getBuffer().retrieveLong();
+					BerkeleySlave.this.clock.adjustTime(offset);
+					
+					System.out.println("Adjusted clock by "+offset+" now at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
 				
 				}
 				s.close();
