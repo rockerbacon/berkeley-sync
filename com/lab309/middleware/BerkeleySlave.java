@@ -12,6 +12,7 @@ import java.io.IOException;
 public class BerkeleySlave {
 
 	private long maxInactivityInterval;
+	private long lastLeaderActivity;
 	private boolean syncing;
 	int port;
 	Clock clock;
@@ -19,6 +20,7 @@ public class BerkeleySlave {
 	
 	public BerkeleySlave (int port, long maxInactivityInterval, Clock clock) {
 		this.maxInactivityInterval = maxInactivityInterval;
+		this.lastLeaderActivity = System.currentTimeMillis();
 		this.syncing = false;
 		this.port = port;
 		this.clock = clock;
@@ -29,7 +31,8 @@ public class BerkeleySlave {
 		new Thread ( new Runnable () {	@Override public void run () {		
 			UDPClient c = null;
 			try {
-				BerkeleySlave.this.s = new UDPServer(port, SizeConstants.sizeOfLong, null);
+				BerkeleySlave.this.s = new UDPServer(SizeConstants.sizeOfLong, null);
+				BerkeleySlave.this.s.bind(port, null);
 				ByteBuffer requestMsg = new ByteBuffer(SizeConstants.sizeOfByte);
 				requestMsg.pushByte(BerkeleyLeader.syncClockRequest);
 				UDPDatagram dtg = new UDPDatagram(SizeConstants.sizeOfLong);
@@ -38,6 +41,7 @@ public class BerkeleySlave {
 			
 					//send time upon request
 					UDPDatagram request = BerkeleySlave.this.s.receiveExpected(requestMsg.getByteArray()); //blocks until request message is received
+					BerkeleySlave.this.lastLeaderActivity = System.currentTimeMillis();	//update leader activity
 					c = new UDPClient(BerkeleySlave.this.port, request.getSender(), null);
 				
 					dtg.getBuffer().pushLong(BerkeleySlave.this.clock.getTimeMillis());
@@ -48,6 +52,7 @@ public class BerkeleySlave {
 				
 					//wait for answer and adjusts clock
 					request = BerkeleySlave.this.s.receive();
+					BerkeleySlave.this.lastLeaderActivity = System.currentTimeMillis();	//update leader activity
 					BerkeleySlave.this.clock.adjustTime(request.getBuffer().retrieveLong());
 				
 				}
@@ -63,6 +68,7 @@ public class BerkeleySlave {
 					}
 				}
 				if (c != null && !c.isClosed()) c.close();
+				if (printTrace) e.printStackTrace();
 			}
 		}}).start();
 	}
@@ -70,6 +76,10 @@ public class BerkeleySlave {
 	public void stopSyncing () {
 		this.syncing = false;
 		this.s.close();
+	}
+	
+	public void monitorLeaderActivity() {
+		//TODO implement method
 	}
 
 }

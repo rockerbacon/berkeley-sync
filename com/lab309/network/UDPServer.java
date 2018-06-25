@@ -5,6 +5,8 @@ import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.DatagramSocketImpl;
+import java.net.InetSocketAddress;
 
 import com.lab309.general.ByteBuffer;
 import com.lab309.security.Cipher;
@@ -48,7 +50,8 @@ public class UDPServer implements Serializable {
 	}
 
 	public UDPServer (int bufferSize, Cipher cipher) throws IOException {
-		this.receiver = new DatagramSocket();
+		this.receiver = new DatagramSocket(null);
+		this.receiver.setReuseAddress(true);
 		this.bufferPacket = new DatagramPacket(new byte[bufferSize], bufferSize);
 		this.boundAddress = null;
 		this.cipher = cipher;
@@ -77,6 +80,11 @@ public class UDPServer implements Serializable {
 	}
 
 	/*METHODS*/
+	public void bind (int port, InetAddress address) throws SocketException {
+		this.receiver.bind(new InetSocketAddress(port));
+		this.boundAddress = address;
+	}
+	
 	public UDPDatagram receive () throws IOException {
 
 		byte[] message;

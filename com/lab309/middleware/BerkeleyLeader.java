@@ -20,8 +20,8 @@ public class BerkeleyLeader {
 
 	private int port;
 	private LinkedList<InetAddress> broadcastIp;
-	private Clock clock;
 	private long answerTimeLimit;
+	private Clock clock;
 	
 	private class Slave {
 		public long timeStamp;
@@ -35,8 +35,9 @@ public class BerkeleyLeader {
 		}
 	}
 	
-	public BerkeleyLeader (int port, Clock clock) throws IOException {
+	public BerkeleyLeader (int port, long answerTimeLimit, Clock clock) throws IOException {
 		this.broadcastIp = NetInfo.broadcastIp();
+		this.answerTimeLimit = answerTimeLimit;
 		this.clock = clock;
 	}
 	
@@ -50,8 +51,8 @@ public class BerkeleyLeader {
 		UDPDatagram dtg;
 		UDPClient c = null;
 		
-		//broadcast time request
 		try {
+			//broadcast time request
 			dtg = new UDPDatagram(SizeConstants.sizeOfByte);
 			dtg.getBuffer().pushByte(BerkeleyLeader.syncClockRequest);
 			for (InetAddress addr : this.broadcastIp) {
@@ -61,7 +62,8 @@ public class BerkeleyLeader {
 			}
 		
 			//receive time requests within time limit
-			s = new UDPServer(BerkeleyLeader.this.port, SizeConstants.sizeOfLong, null);
+			s = new UDPServer(SizeConstants.sizeOfLong, null);
+			s.bind(BerkeleyLeader.this.port, null);
 			availableAnswerTime = this.answerTimeLimit;
 			beginTime = System.currentTimeMillis();
 			while ( (dtg = s.receiveOnTime((int)availableAnswerTime)) != null && availableAnswerTime > 0 ) {

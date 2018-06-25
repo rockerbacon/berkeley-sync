@@ -22,6 +22,7 @@ public class TestClock implements Clock{
 		return this.timestamp;
 	}
 	
+	@Override
 	public void adjustTime (long timeOffset) {
 		this.timestamp += timeOffset;
 	}
