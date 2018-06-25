@@ -15,6 +15,7 @@ import com.lab309.general.ByteArrayConverter;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.net.SocketException;
 
 import java.io.Serializable;
 

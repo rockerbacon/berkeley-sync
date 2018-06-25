@@ -2,6 +2,7 @@ package tests;
 
 import com.lab309.middleware.BerkeleyLeader;
 import com.lab309.middleware.BerkeleySlave;
+import com.lab309.middleware.Clock;
 
 import java.util.Random;
 
@@ -37,6 +38,10 @@ public class TestProcess {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public Clock getClock () {
+		return this.clock;
 	}
 	
 	public void start () {
