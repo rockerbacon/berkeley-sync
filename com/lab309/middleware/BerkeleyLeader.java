@@ -55,18 +55,20 @@ public class BerkeleyLeader {
 		UDPClient c = null;
 		
 		try {
+			s = new UDPServer(SizeConstants.sizeOfInt+SizeConstants.sizeOfLong, null, true);
+			
 			//broadcast time request
-			dtg = new UDPDatagram(SizeConstants.sizeOfByte);
+			dtg = new UDPDatagram(SizeConstants.sizeOfByte+SizeConstants.sizeOfInt);
 			dtg.getBuffer().pushByte(BerkeleyLeader.syncClockRequest);
+			dtg.getBuffer().pushInt(s.getPort());
 			for (InetAddress addr : this.broadcastIp) {
 				c = new UDPClient(this.port, addr, null);
 				c.send(dtg);
 				c.close();
 			}
 		
+			
 			//receive time requests within time limit
-			s = new UDPServer(SizeConstants.sizeOfInt+SizeConstants.sizeOfLong, null, false);
-			s.bind(BerkeleyLeader.this.port, null);
 			availableAnswerTime = this.answerTimeLimit;
 			beginTime = System.currentTimeMillis();
 			while ( (dtg = s.receiveOnTime((int)availableAnswerTime)) != null && availableAnswerTime > 0 ) {
@@ -93,14 +95,13 @@ public class BerkeleyLeader {
 				avgTime /= slaves.size();
 		
 				//send offsets to slaves
-				dtg = new UDPDatagram(SizeConstants.sizeOfByte+SizeConstants.sizeOfLong);
-				dtg.getBuffer().pushByte(BerkeleyLeader.syncClockRequest);
+				dtg = new UDPDatagram(SizeConstants.sizeOfLong);
 				for (Slave slave : slaves) {
 					c = new UDPClient(slave.port, slave.address, null);
 					dtg.getBuffer().pushLong(avgTime-slave.timeStamp-slave.estimatedRtt);
 					c.send(dtg);
 					c.close();
-					dtg.getBuffer().rewind(SizeConstants.sizeOfLong);
+					dtg.getBuffer().rewind();
 				}
 			}
 		} catch (IOException e) {

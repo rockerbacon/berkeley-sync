@@ -8,6 +8,7 @@ import com.lab309.general.SizeConstants;
 import com.lab309.general.ByteBuffer;
 
 import java.io.IOException;
+import java.net.SocketException;
 
 public class BerkeleySlave {
 
@@ -16,8 +17,7 @@ public class BerkeleySlave {
 	private boolean syncing;
 	int port;
 	Clock clock;
-	UDPServer s;
-	UDPServer s2;
+	UDPServer requestServer, syncServer;
 	
 	public BerkeleySlave (int port, long maxInactivityInterval, Clock clock) {
 		this.maxInactivityInterval = maxInactivityInterval;
@@ -29,28 +29,32 @@ public class BerkeleySlave {
 	
 	public void startSyncing () {
 		this.syncing = true;
+		try {
+			this.requestServer = new UDPServer(SizeConstants.sizeOfByte+SizeConstants.sizeOfInt, null, false);
+			this.requestServer.bind(port, null);	
+			this.syncServer = new UDPServer(SizeConstants.sizeOfLong, null, true);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		new Thread ( new Runnable () {	@Override public void run () {		
 			UDPClient c = null;
 			try {
-				BerkeleySlave.this.s = new UDPServer(SizeConstants.sizeOfByte+SizeConstants.sizeOfLong, null, false);
-				BerkeleySlave.this.s.bind(port, null);
-				
-				BerkeleySlave.this.s2 = new UDPServer(SizeConstants.sizeOfLong, null, true);
-				
 				ByteBuffer requestMsg = new ByteBuffer(SizeConstants.sizeOfByte);
 				requestMsg.pushByte(BerkeleyLeader.syncClockRequest);
+				
 				UDPDatagram dtg = new UDPDatagram(SizeConstants.sizeOfInt+SizeConstants.sizeOfLong);
-				dtg.getBuffer().pushInt(BerkeleySlave.this.s2.getPort());
+				dtg.getBuffer().pushInt(BerkeleySlave.this.syncServer.getPort());
 			
 				while (BerkeleySlave.this.syncing) {
 			
 					//send time upon request
-					UDPDatagram request = BerkeleySlave.this.s.receiveExpected(requestMsg.getByteArray()); //blocks until request message is received
+					UDPDatagram request = BerkeleySlave.this.requestServer.receiveExpected(requestMsg.getByteArray()); //blocks until request message is received
+					int answerPort = request.getBuffer().retrieveInt();
 					BerkeleySlave.this.lastLeaderActivity = System.currentTimeMillis();	//update leader activity
 					
 					System.out.println("Received sync request at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
 					
-					c = new UDPClient(BerkeleySlave.this.port, request.getSender(), null);
+					c = new UDPClient(answerPort, request.getSender(), null);
 					dtg.getBuffer().pushLong(BerkeleySlave.this.clock.getTimeMillis());
 					c.send(dtg);
 				
@@ -58,7 +62,7 @@ public class BerkeleySlave {
 					c.close();
 				
 					//wait for answer and adjusts clock
-					request = BerkeleySlave.this.s.receiveExpected(requestMsg.getByteArray());
+					request = BerkeleySlave.this.syncServer.receive();
 					BerkeleySlave.this.lastLeaderActivity = System.currentTimeMillis();	//update leader activity
 					long offset = request.getBuffer().retrieveLong();
 					BerkeleySlave.this.clock.adjustTime(offset);
@@ -66,26 +70,25 @@ public class BerkeleySlave {
 					System.out.println("Adjusted clock by "+offset+" now at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
 				
 				}
-				s.close();
 			} catch (IOException e) {
-				boolean printTrace = true;
-				if (BerkeleySlave.this.s != null) {
-					if (BerkeleySlave.this.s.isClosed()) {
-						System.err.println("Socket closed");
-						printTrace = false;
-					} else {
-						BerkeleySlave.this.s.close();
-					}
+				if (c != null) c.close();
+				
+				//a socket exception is thrown if the stopSyncing function is called, so no need to trace as a bug
+				//(not in a different catch since it extends IOException)
+				if (!(e instanceof SocketException)) {
+					e.printStackTrace();
 				}
-				if (c != null && !c.isClosed()) c.close();
-				if (printTrace) e.printStackTrace();
+				
+			} finally {
+				BerkeleySlave.this.stopSyncing();	//handles closing all the sockets
 			}
 		}}).start();
 	}
 	
 	public void stopSyncing () {
 		this.syncing = false;
-		this.s.close();
+		if (this.requestServer != null) this.requestServer.close();
+		if (this.syncServer != null) this.syncServer.close();
 	}
 	
 	public void monitorLeaderActivity() {
