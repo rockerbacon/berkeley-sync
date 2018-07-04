@@ -15,7 +15,7 @@ public class TestProcess {
 	private static int electionPort = 51050;
 	private static long answerLimit = 500;
 	private static long inactivityLimit = 2200;
-	private static long minUpdateInterval = 98, maxUpdateInterval = 102;
+	private static long minUpdateInterval = 30, maxUpdateInterval = 33;
 	private static float minUpdateIncrement = 0.98f, maxUpdateIncrement = 1.02f;
 	private static long syncInterval = 300;
 
