@@ -41,6 +41,8 @@ public class BullyElector {
 		this.answerServer = null;
 		this.resultLock = new Object();
 		this.result = false;
+		
+		System.out.println("Processo com id " + this.id);	//debug
 	}
 	
 	public void updateActivity () {
@@ -120,14 +122,23 @@ public class BullyElector {
 						}
 					} else {
 						BullyElector.this.result = false;	//if there's an id bigger than this one, it won't be the leader
-						BullyElector.this.resultLock.notifyAll();
+						synchronized (BullyElector.this.resultLock) {
+							BullyElector.this.resultLock.notifyAll();
+						}
+						
+						System.out.println("Processo desistiu da eleicao");	//debug
+						
 						return;
 					}
 					
 				} while (receivedCandidature);
 				
 				BullyElector.this.result = true;	//if no one challenges the candidature at some point this process becomes the leader
-				BullyElector.this.resultLock.notifyAll();
+				synchronized (BullyElector.this.resultLock) {
+					BullyElector.this.resultLock.notifyAll();
+				}
+				
+				System.out.println("Processo eleito como novo lider");	//debug
 				
 			} catch (IOException e) {
 				if (!(e instanceof SocketException)) {
@@ -153,6 +164,8 @@ public class BullyElector {
 							c.send(dtg);
 							c.close();
 						}
+						
+						System.out.println("Processo iniciou eleicao");	//debug
 					}
 					Thread.sleep(BullyElector.this.maxInactivityInterval);
 				}
@@ -164,7 +177,9 @@ public class BullyElector {
 		}}).start();
 		
 		try {
-			this.resultLock.wait();
+			synchronized (this.resultLock) {
+				this.resultLock.wait();
+			}
 		} catch (InterruptedException e) {
 			System.err.println("Election aborted");
 		}
@@ -174,31 +189,10 @@ public class BullyElector {
 	
 	public void stopAllActivity() {
 		this.monitoringLeader = false;
-		this.resultLock.notifyAll();
-		if (this.answerServer != null) this.answerServer.close();
-	}
-	
-	private void electLeader () {
-		long availableAnswerTime, beginTime, endTime;
-		try {
-			LinkedList<InetAddress> broadcast = NetInfo.broadcastIp();
-			UDPServer answerServer = new UDPServer(SizeConstants.sizeOfInt, null, true);
-			UDPDatagram dtg = new UDPDatagram(SizeConstants.sizeOfByte+2*SizeConstants.sizeOfInt);
-			dtg.getBuffer().pushByteArray(BullyElector.electionMsg);
-			dtg.getBuffer().pushInt(this.id);
-			dtg.getBuffer().pushInt(answerServer.getPort());
-			UDPDatagram answer;
-			
-			//broadcast election announcement
-			for (InetAddress addr : broadcast) {
-				UDPClient client = new UDPClient(this.port, addr, null);
-				client.send(dtg);
-				client.close();
-			}
-			
-		} catch (IOException e) {
-			e.printStackTrace();
+		synchronized (BullyElector.this.resultLock) {
+			this.resultLock.notifyAll();
 		}
+		if (this.answerServer != null) this.answerServer.close();
 	}
 
 }

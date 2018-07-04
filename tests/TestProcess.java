@@ -90,6 +90,7 @@ public class TestProcess {
 		this.synchronizer.stopSyncing();
 		this.monitoring = false;
 		this.syncLeader = null;
+		this.elector.stopAllActivity();
 	}
 
 }
