@@ -15,9 +15,9 @@ public class TestProcess {
 	private static int electionPort = 51050;
 	private static long answerLimit = 500;
 	private static long inactivityLimit = 2200;
-	private static long minUpdateInterval = 1900, maxUpdateInterval = 2100;
-	private static float minUpdateIncrement = 0.95f, maxUpdateIncrement = 1.05f;
-	private static long syncInterval = 1500;
+	private static long minUpdateInterval = 98, maxUpdateInterval = 102;
+	private static float minUpdateIncrement = 0.98f, maxUpdateIncrement = 1.02f;
+	private static long syncInterval = 300;
 
 	private TestClock clock;
 	private BerkeleySlave synchronizer;

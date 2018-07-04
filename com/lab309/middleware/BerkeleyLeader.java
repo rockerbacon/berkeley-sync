@@ -28,12 +28,14 @@ public class BerkeleyLeader {
 		public long timeStamp;
 		public InetAddress address;
 		public long estimatedRtt;
+		public long delayToSend;
 		
-		public Slave (int port, long timeStamp, InetAddress address, long estimatedRtt) {
+		public Slave (int port, long timeStamp, InetAddress address, long estimatedRtt, long delayToSend) {
 			this.port = port;
 			this.timeStamp = timeStamp;
 			this.address = address;
 			this.estimatedRtt = estimatedRtt;
+			this.delayToSend = delayToSend;
 		}
 	}
 	
@@ -75,7 +77,7 @@ public class BerkeleyLeader {
 				long estimatedRtt = (System.currentTimeMillis()-startTime)/2;
 				int port = dtg.getBuffer().getInt();
 				long timestamp = dtg.getBuffer().getLong();
-				slaves.add(new Slave(port, timestamp, dtg.getSender(), estimatedRtt));
+				slaves.add(new Slave(port, timestamp, dtg.getSender(), estimatedRtt, availableAnswerTime));
 				
 				//System.out.println("Received timestamp "+timestamp+" estimated rtt "+estimatedRtt);	//debug
 				
@@ -90,7 +92,7 @@ public class BerkeleyLeader {
 				//calculate average time
 				avgTime = 0;
 				for (Slave slave : slaves) {
-					avgTime += slave.timeStamp;
+					avgTime += slave.timeStamp+slave.estimatedRtt+slave.delayToSend;
 				}
 				avgTime /= slaves.size();
 				
