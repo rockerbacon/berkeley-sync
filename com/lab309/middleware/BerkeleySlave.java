@@ -12,21 +12,17 @@ import java.net.SocketException;
 
 public class BerkeleySlave {
 
-	private long maxInactivityInterval;
-	private long lastLeaderActivity;
 	private boolean syncing;
 	private int port;
 	private Clock clock;
 	private UDPServer requestServer, syncServer;
-	private boolean monitoringLeader;
+	private BullyElector elector;
 	
-	public BerkeleySlave (int port, long maxInactivityInterval, Clock clock) {
-		this.maxInactivityInterval = maxInactivityInterval;
-		this.lastLeaderActivity = 0;
-		this.lastLeaderActivity = System.currentTimeMillis();
+	public BerkeleySlave (int syncPort, int monitorPort, long maxInactivityInterval, Clock clock) {
 		this.syncing = false;
-		this.port = port;
+		this.port = syncPort;
 		this.clock = clock;
+		this.elector = new BullyElector(monitorPort, maxInactivityInterval, clock);
 	}
 	
 	public void startSyncing () {
@@ -52,7 +48,7 @@ public class BerkeleySlave {
 					//send time upon request
 					UDPDatagram request = BerkeleySlave.this.requestServer.receiveExpected(requestMsg.getByteArray()); //blocks until request message is received
 					int answerPort = request.getBuffer().retrieveInt();
-					BerkeleySlave.this.lastLeaderActivity = BerkeleySlave.this.clock.getTimeMillis();	//update leader activity
+					BerkeleySlave.this.elector.updateActivity();
 					
 					System.out.println("Received sync request at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
 					
@@ -66,7 +62,7 @@ public class BerkeleySlave {
 					//wait for answer and adjusts clock
 					request = BerkeleySlave.this.syncServer.receive();
 					long offset = request.getBuffer().retrieveLong();
-					BerkeleySlave.this.lastLeaderActivity = BerkeleySlave.this.clock.getTimeMillis();	//update leader activity
+					BerkeleySlave.this.elector.updateActivity();
 					
 					BerkeleySlave.this.clock.adjustTime(offset);
 					
@@ -93,30 +89,6 @@ public class BerkeleySlave {
 		this.syncing = false;
 		if (this.requestServer != null) this.requestServer.close();
 		if (this.syncServer != null) this.syncServer.close();
-	}
-	
-	private void electBully () {
-		//TODO implement Bully election
-	}
-	
-	public void startMonitoringLeader() {
-		this.monitoringLeader = true;
-		new Thread ( new Runnable () { @Override public void run () {
-			try {
-				while (BerkeleySlave.this.monitoringLeader) {
-					if (BerkeleySlave.this.clock.getTimeMillis()-BerkeleySlave.this.lastLeaderActivity > BerkeleySlave.this.maxInactivityInterval) {
-						BerkeleySlave.this.electBully();
-					}
-					Thread.sleep(BerkeleySlave.this.maxInactivityInterval);
-				}
-			} catch (InterruptedException e) {
-				System.err.println("Leader monitoring interrupted");
-			}
-		}}).start();
-	}
-	
-	public void stopMonitoringLeader() {
-		this.monitoringLeader = false;
 	}
 
 }
