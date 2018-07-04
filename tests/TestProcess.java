@@ -21,9 +21,10 @@ public class TestProcess {
 
 	private TestClock clock;
 	private BerkeleySlave synchronizer;
-	private BerkeleyLeader syncLeader;
+	private volatile BerkeleyLeader syncLeader;
 	private BullyElector elector;
-	private boolean monitoring;
+	private volatile boolean monitoring;
+	private Thread thr;
 	
 	private static long randomBetween (long min, long max) {
 		Random rnd = new Random();
@@ -38,28 +39,14 @@ public class TestProcess {
 		try {
 			long updateInterval = randomBetween(minUpdateInterval, maxUpdateInterval);
 			this.clock = new TestClock(0, updateInterval, (long)(updateInterval*randomBetween(minUpdateIncrement, maxUpdateIncrement)));
-			this.synchronizer = new BerkeleySlave(TestProcess.port, this.clock);
+			this.elector = new BullyElector(TestProcess.electionPort, inactivityLimit, answerLimit, this.clock);
+			this.synchronizer = new BerkeleySlave(TestProcess.port, this.clock, this.elector);
 			if (isLeader) {
 				this.syncLeader = new BerkeleyLeader(TestProcess.port, TestProcess.answerLimit, this.clock);
 			} else {
 				this.syncLeader = null;
 			}
-			this.elector = new BullyElector(TestProcess.electionPort, inactivityLimit, answerLimit, this.clock);
-			
-			this.monitoring = true;
-			new Thread(new Runnable() { @Override public void run () {
-				try {
-					while (TestProcess.this.monitoring) {
-						if (TestProcess.this.elector.becomesLeaderUponElection()) {
-							TestProcess.this.syncLeader = new BerkeleyLeader(TestProcess.port, TestProcess.answerLimit, TestProcess.this.clock);
-						} else {
-							TestProcess.this.syncLeader = null;
-						}
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}}).start();
+			this.thr = null;
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -73,14 +60,34 @@ public class TestProcess {
 	public void start () {
 		this.clock.start();
 		this.synchronizer.startSyncing();
-		new Thread( new Runnable () { @Override public void run () {
+		
+		this.monitoring = true;
+		new Thread(new Runnable() { @Override public void run () {
 			try {
-				while (TestProcess.this.syncLeader != null) {
-					TestProcess.this.syncLeader.sync();
-					Thread.sleep(TestProcess.syncInterval);
+				while (TestProcess.this.monitoring) {
+					if (TestProcess.this.elector.becomesLeaderUponElection()) {
+					
+						TestProcess.this.syncLeader = new BerkeleyLeader(TestProcess.port, TestProcess.answerLimit, TestProcess.this.clock);
+						
+						TestProcess.this.thr = new Thread( new Runnable () { @Override public void run () {
+							try {
+								while (TestProcess.this.syncLeader != null) {
+									TestProcess.this.syncLeader.sync();
+									Thread.sleep(TestProcess.syncInterval);
+								}
+							} catch (InterruptedException e) {
+								System.err.println("Thread sleep interrupted");
+							}
+						}});
+						TestProcess.this.thr.start();
+						
+					} else {
+						if (TestProcess.this.thr != null) TestProcess.this.thr.interrupt();
+						TestProcess.this.syncLeader = null;
+					}
 				}
-			} catch (InterruptedException e) {
-				System.err.println("Thread sleep interrupted");
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}}).start();
 	}
@@ -90,6 +97,7 @@ public class TestProcess {
 		this.synchronizer.stopSyncing();
 		this.monitoring = false;
 		this.syncLeader = null;
+		if (this.thr != null) this.thr.interrupt();
 		this.elector.stopAllActivity();
 	}
 

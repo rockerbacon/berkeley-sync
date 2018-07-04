@@ -23,8 +23,8 @@ public class BullyElector {
 	private long maxInactivityInterval;
 	private long answerTimeLimit;
 	private Clock clock;
-	private long lastLeaderActivity;
-	private boolean monitoringLeader;
+	private volatile long lastLeaderActivity;
+	private volatile boolean monitoringLeader;
 	private int id;
 	private UDPServer answerServer;
 	private Object resultLock;
@@ -37,7 +37,7 @@ public class BullyElector {
 		this.clock = clock;
 		this.lastLeaderActivity = 0;
 		this.monitoringLeader = false;
-		this.id = new Random().nextInt();
+		this.id = new Random().nextInt(0x7FFFFFFE)+1;
 		this.answerServer = null;
 		this.resultLock = new Object();
 		this.result = false;
@@ -83,6 +83,8 @@ public class BullyElector {
 					id = dtg.getBuffer().retrieveInt();
 				else
 					id = 0;
+					
+				System.out.println("Recebeu id " + id);	//debug
 				
 				//execute while someone is still sending candidatures
 				do {
@@ -101,6 +103,8 @@ public class BullyElector {
 							endTime = System.currentTimeMillis();
 							availableTime -= endTime-beginTime;
 							beginTime = endTime;
+							
+							System.out.println("Recebeu id " + id);	//debug
 						}
 			
 					}
@@ -108,7 +112,7 @@ public class BullyElector {
 					thisId = BullyElector.this.id;	//used to preserve value of id used in last election iteration
 					//special case when two processes have the same id
 					if (id == BullyElector.this.id && !dtg.getSender().equals(thisAddr)) {
-						BullyElector.this.id = new Random().nextInt();
+						BullyElector.this.id = new Random().nextInt(0x7FFFFFFE)+1;
 						candidature.getBuffer().rewind(SizeConstants.sizeOfInt);
 						candidature.getBuffer().pushInt(BullyElector.this.id);
 					}
@@ -121,22 +125,25 @@ public class BullyElector {
 							c.close();
 						}
 					} else {
+						BullyElector.this.monitoringLeader = false;
 						BullyElector.this.result = false;	//if there's an id bigger than this one, it won't be the leader
 						synchronized (BullyElector.this.resultLock) {
 							BullyElector.this.resultLock.notifyAll();
 						}
 						
 						System.out.println("Processo desistiu da eleicao");	//debug
-						
+						BullyElector.this.lastLeaderActivity = BullyElector.this.clock.getTimeMillis();					
 						return;
 					}
 					
 				} while (receivedCandidature);
 				
+				BullyElector.this.monitoringLeader = false;				
 				BullyElector.this.result = true;	//if no one challenges the candidature at some point this process becomes the leader
 				synchronized (BullyElector.this.resultLock) {
 					BullyElector.this.resultLock.notifyAll();
 				}
+				BullyElector.this.lastLeaderActivity = BullyElector.this.clock.getTimeMillis();				
 				
 				System.out.println("Processo eleito como novo lider");	//debug
 				
@@ -146,6 +153,9 @@ public class BullyElector {
 				}
 			} finally {
 				if (BullyElector.this.answerServer != null) BullyElector.this.answerServer.close();
+				synchronized (BullyElector.this.resultLock) {
+					BullyElector.this.resultLock.notifyAll();
+				}
 			}
 		}}).start();
 		
@@ -154,6 +164,9 @@ public class BullyElector {
 			try {
 				while (BullyElector.this.monitoringLeader) {
 					if (BullyElector.this.clock.getTimeMillis()-BullyElector.this.lastLeaderActivity > BullyElector.this.maxInactivityInterval) {
+					
+						System.out.println("Processo iniciou eleicao");	//debug
+						
 						//broadcast candidature to start election after leader goes inactive
 						LinkedList<InetAddress> broadcast = NetInfo.broadcastIp();
 						UDPDatagram dtg = new UDPDatagram(BullyElector.electionMsg.length+SizeConstants.sizeOfInt);
@@ -165,7 +178,7 @@ public class BullyElector {
 							c.close();
 						}
 						
-						System.out.println("Processo iniciou eleicao");	//debug
+						return;
 					}
 					Thread.sleep(BullyElector.this.maxInactivityInterval);
 				}
@@ -189,9 +202,7 @@ public class BullyElector {
 	
 	public void stopAllActivity() {
 		this.monitoringLeader = false;
-		synchronized (BullyElector.this.resultLock) {
-			this.resultLock.notifyAll();
-		}
+		this.result = false;
 		if (this.answerServer != null) this.answerServer.close();
 	}
 
