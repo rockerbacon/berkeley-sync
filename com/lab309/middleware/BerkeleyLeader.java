@@ -71,7 +71,7 @@ public class BerkeleyLeader {
 			//receive time requests within time limit
 			availableAnswerTime = this.answerTimeLimit;
 			beginTime = System.currentTimeMillis();
-			while ( (dtg = s.receiveOnTime((int)availableAnswerTime)) != null && availableAnswerTime > 0 ) {
+			while ( availableAnswerTime > 0 && (dtg = s.receiveOnTime((int)availableAnswerTime)) != null ) {
 				long estimatedRtt = (System.currentTimeMillis()-startTime)/2;
 				int port = dtg.getBuffer().getInt();
 				long timestamp = dtg.getBuffer().getLong();
@@ -101,7 +101,7 @@ public class BerkeleyLeader {
 				for (Slave slave : slaves) {
 					c = new UDPClient(slave.port, slave.address, null);
 					//System.out.println("Offset for "+slave.timeStamp+" through " +slave.port+" = "+(avgTime-slave.timeStamp-slave.estimatedRtt));	//debug
-					dtg.getBuffer().putLong(avgTime-slave.timeStamp-slave.estimatedRtt);
+					dtg.getBuffer().putLong(avgTime-slave.timeStamp/*-slave.estimatedRtt*/);
 					c.send(dtg);
 					c.close();
 					dtg.getBuffer().rewind();

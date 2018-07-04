@@ -69,7 +69,6 @@ public class BullyElector {
 			LinkedList<InetAddress> broadcast;
 			long availableTime, beginTime, endTime;
 			int id, thisId;
-			boolean receivedCandidature;
 			try {
 				thisAddr = NetInfo.thisMachineIpv4();
 				broadcast = NetInfo.broadcastIp();
@@ -90,33 +89,25 @@ public class BullyElector {
 						id = 0;
 					*/
 					id = dtg.getBuffer().getInt();
-					if (id == BullyElector.this.id) {
-						id = 0;
-						receivedCandidature = false;
-					} else {
-						receivedCandidature = true;
-						System.out.println("Recebeu id " + id);	//debug
-					}
-					
+					System.out.println("Recebeu id " + id);	//debug
 				
 					//execute while someone is still sending candidatures
 					do {
 						availableTime = BullyElector.this.answerTimeLimit;
 						beginTime = System.currentTimeMillis();
 						//receive all candidates and stop once a better than this one was found or the time has run out
-						while (	id < BullyElector.this.id &&
-								availableTime > 0 &&
-								(dtg = BullyElector.this.answerServer.receiveExpectedOnTime(BullyElector.electionMsg, (int)availableTime, 1)) != null ) {
+						while (id <= BullyElector.this.id && availableTime > 0) {
+							
+							dtg = BullyElector.this.answerServer.receiveExpectedOnTime(BullyElector.electionMsg, (int)availableTime, 5);
 						
-							id = dtg.getBuffer().getInt();
-							if (/*!dtg.getSender().equals(thisAddr)*/id != BullyElector.this.id) {
-								receivedCandidature = true;
-								endTime = System.currentTimeMillis();
-								availableTime -= endTime-beginTime;
-								beginTime = endTime;
-						
+							if (dtg != null) {
+								id = dtg.getBuffer().getInt();
 								System.out.println("Recebeu id " + id);	//debug
 							}
+							
+							endTime = System.currentTimeMillis();
+							availableTime -= endTime-beginTime;
+							beginTime = endTime;
 			
 						}
 					
@@ -130,16 +121,8 @@ public class BullyElector {
 						}
 						*/
 					
-						//broadcast candidature in case no process has shown a better case
-						if (id < thisId && receivedCandidature) {
-							for (InetAddress addr : broadcast) {
-								UDPClient c = new UDPClient(BullyElector.this.port, addr, null);
-								c.send(candidature);
-								c.close();
-							}
-							System.out.println("Processo enviou candidatura");	//debug
-						} else if (id > thisId) {
-					
+						//give up in case someone has a higher id
+						if (id > thisId) {
 							System.out.println("Processo desistiu da eleicao");	//debug
 						
 							BullyElector.this.answerServer.receiveExpected(BullyElector.newLeaderMsg);
@@ -152,9 +135,17 @@ public class BullyElector {
 						
 							BullyElector.this.lastLeaderActivity = BullyElector.this.clock.getTimeMillis();				
 							return;
+						} else if (id < thisId) {
+					
+							for (InetAddress addr : broadcast) {
+								UDPClient c = new UDPClient(BullyElector.this.port, addr, null);
+								c.send(candidature);
+								c.close();
+							}
+							System.out.println("Processo enviou candidatura");	//debug
 						}
 					
-					} while (receivedCandidature);
+					} while (availableTime > 0);
 				
 					BullyElector.this.monitoringLeader = false;				
 					BullyElector.this.result = true;	//if no one challenges the candidature at some point this process becomes the leader
