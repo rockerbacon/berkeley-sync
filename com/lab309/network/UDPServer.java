@@ -7,8 +7,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.DatagramSocketImpl;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 
-import com.lab309.general.ByteBuffer;
 import com.lab309.security.Cipher;
 
 import com.lab309.general.ByteArrayConverter;
@@ -109,7 +109,7 @@ public class UDPServer implements Serializable {
 			message = this.bufferPacket.getData();
 		}
 
-		return new UDPDatagram(new ByteBuffer(message), this.bufferPacket.getAddress(), this.bufferPacket.getPort());
+		return new UDPDatagram(ByteBuffer.wrap(message), this.bufferPacket.getAddress(), this.bufferPacket.getPort());
 	}
 
 	//retorna null se nenhum datagrama foi recebido a tempo
@@ -146,7 +146,7 @@ public class UDPServer implements Serializable {
 			message = this.bufferPacket.getData();
 		}
 		
-		return new UDPDatagram(new ByteBuffer(message), this.bufferPacket.getAddress(), this.bufferPacket.getPort());
+		return new UDPDatagram(ByteBuffer.wrap(message), this.bufferPacket.getAddress(), this.bufferPacket.getPort());
 	}
 
 	public UDPDatagram receiveOnTime (int timeInMillis) throws IOException {
@@ -192,8 +192,9 @@ public class UDPServer implements Serializable {
 			}
 
 		} while ( message == null || this.boundAddress != null && !this.bufferPacket.getAddress().equals(this.boundAddress) );
-
-		return new UDPDatagram(new ByteBuffer(message, expected.length), this.bufferPacket.getAddress(), this.bufferPacket.getPort());
+		ByteBuffer buff = ByteBuffer.wrap(message);
+		buff.position(expected.length);
+		return new UDPDatagram(buff, this.bufferPacket.getAddress(), this.bufferPacket.getPort());
 	}
 
 	//null se pacote esperado nao foi recebido
@@ -235,8 +236,9 @@ public class UDPServer implements Serializable {
 				}
 
 			} while ( message == null || this.boundAddress != null && !this.bufferPacket.getAddress().equals(this.boundAddress) );
-
-			return new UDPDatagram(new ByteBuffer(message, expected.length), this.bufferPacket.getAddress(), this.bufferPacket.getPort());
+			ByteBuffer buff = ByteBuffer.wrap(message);
+			buff.position(expected.length);
+			return new UDPDatagram(buff, this.bufferPacket.getAddress(), this.bufferPacket.getPort());
 
 		} catch (SocketTimeoutException e) {
 			return null;

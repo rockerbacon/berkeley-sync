@@ -46,7 +46,7 @@ public class BerkeleyLeader {
 	
 	public void sync () {
 		ArrayList<Slave> slaves = new ArrayList<Slave>();
-		long startTime = clock.getTimeMillis();
+		long startTime = System.currentTimeMillis();
 		long avgTime;
 		long availableAnswerTime;
 		long beginTime, endTime;
@@ -59,8 +59,8 @@ public class BerkeleyLeader {
 			
 			//broadcast time request
 			dtg = new UDPDatagram(SizeConstants.sizeOfByte+SizeConstants.sizeOfInt);
-			dtg.getBuffer().pushByte(BerkeleyLeader.syncClockRequest);
-			dtg.getBuffer().pushInt(s.getPort());
+			dtg.getBuffer().put(BerkeleyLeader.syncClockRequest);
+			dtg.getBuffer().putInt(s.getPort());
 			for (InetAddress addr : this.broadcastIp) {
 				c = new UDPClient(this.port, addr, null);
 				c.send(dtg);
@@ -72,12 +72,12 @@ public class BerkeleyLeader {
 			availableAnswerTime = this.answerTimeLimit;
 			beginTime = System.currentTimeMillis();
 			while ( (dtg = s.receiveOnTime((int)availableAnswerTime)) != null && availableAnswerTime > 0 ) {
-				long estimatedRtt = (clock.getTimeMillis()-startTime)/2;
-				int port = dtg.getBuffer().retrieveInt();
-				long timestamp = dtg.getBuffer().retrieveLong();
+				long estimatedRtt = (System.currentTimeMillis()-startTime)/2;
+				int port = dtg.getBuffer().getInt();
+				long timestamp = dtg.getBuffer().getLong();
 				slaves.add(new Slave(port, timestamp, dtg.getSender(), estimatedRtt));
 				
-				//System.out.println("Received timestamp "+timestamp);	//debug
+				//System.out.println("Received timestamp "+timestamp+" estimated rtt "+estimatedRtt);	//debug
 				
 				//calculate remaining answer time
 				endTime = System.currentTimeMillis();
@@ -93,12 +93,15 @@ public class BerkeleyLeader {
 					avgTime += slave.timeStamp;
 				}
 				avgTime /= slaves.size();
+				
+				//System.out.println("Avg time "+avgTime);	//debug
 		
 				//send offsets to slaves
 				dtg = new UDPDatagram(SizeConstants.sizeOfLong);
 				for (Slave slave : slaves) {
 					c = new UDPClient(slave.port, slave.address, null);
-					dtg.getBuffer().pushLong(avgTime-slave.timeStamp-slave.estimatedRtt);
+					//System.out.println("Offset for "+slave.timeStamp+" through " +slave.port+" = "+(avgTime-slave.timeStamp-slave.estimatedRtt));	//debug
+					dtg.getBuffer().putLong(avgTime-slave.timeStamp-slave.estimatedRtt);
 					c.send(dtg);
 					c.close();
 					dtg.getBuffer().rewind();

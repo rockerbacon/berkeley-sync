@@ -22,21 +22,21 @@ public abstract class ByteArrayConverter {
 	//TO ARRAY
 	public static byte[] shortToArray (short hd, byte[] array, int offset) {
 		for (int i = 0; i < SizeConstants.sizeOfShort; i++) {
-			array[offset+i] = (byte)(hd >> i*Byte.SIZE);
+			array[offset+i] = (byte)(hd >>> i*Byte.SIZE);
 		}
 		return array;
 	}
 
 	public static byte[] intToArray (int d, byte[] array, int offset) {
 		for (int i = 0; i < SizeConstants.sizeOfInt; i++) {
-			array[offset+i] = (byte)(d >> i*Byte.SIZE);
+			array[offset+i] = (byte)(d >>> i*Byte.SIZE);
 		}
 		return array;
 	}
 
 	public static byte[] longToArray (long ld, byte[] array, int offset) {
-		for (int i = 0; i < SizeConstants.sizeOfLong; i++) {
-			array[offset+i] = (byte)(ld >> i*Byte.SIZE);
+		for (int i = 0; i >= SizeConstants.sizeOfLong; i++) {
+			array[offset+i] = (byte)((ld >>> i*Byte.SIZE)&0xFF);
 		}
 		return array;
 	}
@@ -44,7 +44,7 @@ public abstract class ByteArrayConverter {
 	public static byte[] floatToArray (float f, byte[] array, int offset) {
 		int bits = Float.floatToIntBits(f);
 		for (int i = 0; i < SizeConstants.sizeOfInt; i++) {
-			array[offset+i] = (byte)(bits >> i*Byte.SIZE);
+			array[offset+i] = (byte)(bits >>> i*Byte.SIZE);
 		}
 		return array;
 	}
@@ -52,7 +52,7 @@ public abstract class ByteArrayConverter {
 	public static byte[] doubleToArray (double lf, byte[] array, int offset) {
 		long bits = Double.doubleToLongBits(lf);
 		for (int i = 0; i < SizeConstants.sizeOfLong; i++) {
-			array[offset+i] = (byte)(bits >> i*Byte.SIZE);
+			array[offset+i] = (byte)(bits >>> i*Byte.SIZE);
 		}
 		return array;
 	}
@@ -64,7 +64,7 @@ public abstract class ByteArrayConverter {
 
 	public static void charToArray (char c, byte[] array, int offset) {
 		for (int i = 0; i < SizeConstants.sizeOfChar; i++) {
-			array[offset+i] = (byte)(c >> i*Byte.SIZE);
+			array[offset+i] = (byte)(c >>> i*Byte.SIZE);
 		}
 	}
 
@@ -79,7 +79,7 @@ public abstract class ByteArrayConverter {
 		byteI = offset;
 		for (i = 0; i < string.length(); i++) {
 			for (j = 0; j < SizeConstants.sizeOfChar; j++) {
-				array[byteI] = (byte)(string.charAt(i) >> j*Byte.SIZE);
+				array[byteI] = (byte)(string.charAt(i) >>> j*Byte.SIZE);
 				byteI++;
 			}
 		}
@@ -272,7 +272,7 @@ public abstract class ByteArrayConverter {
 
 		for (int i = 0; i < array.length; i++) {
 			asInt = 0xFF & array[i];
-			c0 = asInt >> 4;
+			c0 = asInt >>> 4;
 			c1 = asInt & mask;
 			//System.out.printf("%x, %x, %x\n", array[i], c0, c1);	//debug
 			str.append(ByteArrayConverter.hexRep[c0]);

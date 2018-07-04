@@ -59,7 +59,7 @@ public class UDPClient implements Serializable {
 			if (this.cipher != null) {
 
 				try {
-					message = this.cipher.encrypt(datagram.getBuffer().getByteArray(), 0, datagram.getBuffer().getOffset());
+					message = this.cipher.encrypt(datagram.getBuffer().array(), 0, datagram.getBuffer().position());
 				} catch (IllegalBlockSizeException e) {
 					e.printStackTrace();
 					return;
@@ -68,7 +68,7 @@ public class UDPClient implements Serializable {
 				//System.out.println (ByteArrayConverter.toStringRepresentation(message));	//debug
 
 			} else {
-				message = datagram.getBuffer().getByteArray();
+				message = datagram.getBuffer().array();
 			}
 
 			this.sender.send( new DatagramPacket(message, message.length, this.boundAddress, this.boundPort) );

@@ -13,11 +13,11 @@ public class TestProcess {
 
 	private static int port = 50050;
 	private static int electionPort = 51050;
-	private static long answerLimit = 300;
-	private static long inactivityLimit = 2300;
+	private static long answerLimit = 500;
+	private static long inactivityLimit = 2100;
 	private static long minUpdateInterval = 1900, maxUpdateInterval = 2100;
-	private static float minUpdateIncrement = 0.9f, maxUpdateIncrement = 1.1f;
-	private static long syncInterval = 2000;
+	private static float minUpdateIncrement = 0.95f, maxUpdateIncrement = 1.05f;
+	private static long syncInterval = 1500;
 
 	private TestClock clock;
 	private BerkeleySlave synchronizer;
@@ -86,6 +86,7 @@ public class TestProcess {
 						TestProcess.this.syncLeader = null;
 					}
 				}
+				System.out.println("monitoramento terminado");	//debug
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

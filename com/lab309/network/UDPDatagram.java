@@ -1,6 +1,6 @@
 package com.lab309.network;
 
-import com.lab309.general.ByteBuffer;
+import java.nio.ByteBuffer;
 
 import java.net.InetAddress;
 
@@ -22,7 +22,7 @@ public class UDPDatagram {
 	}
 
 	public UDPDatagram (int bufferSize) {
-		this.buffer = new ByteBuffer(bufferSize);
+		this.buffer = ByteBuffer.allocate(bufferSize);
 	}
 
 	/*GETTERS*/

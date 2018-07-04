@@ -10,6 +10,9 @@ import com.lab309.general.ByteBuffer;
 import java.io.IOException;
 import java.net.SocketException;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class BerkeleySlave {
 
 	private boolean syncing;
@@ -36,37 +39,39 @@ public class BerkeleySlave {
 		}
 		new Thread ( new Runnable () {	@Override public void run () {		
 			UDPClient c = null;
+			SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 			try {
 				ByteBuffer requestMsg = new ByteBuffer(SizeConstants.sizeOfByte);
 				requestMsg.pushByte(BerkeleyLeader.syncClockRequest);
 				
 				UDPDatagram dtg = new UDPDatagram(SizeConstants.sizeOfInt+SizeConstants.sizeOfLong);
-				dtg.getBuffer().pushInt(BerkeleySlave.this.syncServer.getPort());
+				dtg.getBuffer().putInt(BerkeleySlave.this.syncServer.getPort());
 			
 				while (BerkeleySlave.this.syncing) {
 			
 					//send time upon request
 					UDPDatagram request = BerkeleySlave.this.requestServer.receiveExpected(requestMsg.getByteArray()); //blocks until request message is received
-					int answerPort = request.getBuffer().retrieveInt();
+					int answerPort = request.getBuffer().getInt();
 					BerkeleySlave.this.elector.updateActivity();
 					
-					System.out.println("Received sync request at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
+					//System.out.println("Recebeu pedido de sincronizacao em "+BerkeleySlave.this.clock.getTimeMillis());	//debug
 					
 					c = new UDPClient(answerPort, request.getSender(), null);
-					dtg.getBuffer().pushLong(BerkeleySlave.this.clock.getTimeMillis());
+					dtg.getBuffer().putLong(BerkeleySlave.this.clock.getTimeMillis());
 					c.send(dtg);
 				
-					dtg.getBuffer().rewind(SizeConstants.sizeOfLong);
+					dtg.getBuffer().position(dtg.getBuffer().position()-SizeConstants.sizeOfLong);
 					c.close();
 				
 					//wait for answer and adjusts clock
 					request = BerkeleySlave.this.syncServer.receive();
-					long offset = request.getBuffer().retrieveLong();
-					BerkeleySlave.this.elector.updateActivity();
+					long offset = request.getBuffer().getLong();
+					//System.out.println("Received offset "+offset+" through "+BerkeleySlave.this.syncServer.getPort());	//debug
 					
 					BerkeleySlave.this.clock.adjustTime(offset);
+					BerkeleySlave.this.elector.updateActivity();
 					
-					System.out.println("Adjusted clock by "+offset+" now at "+BerkeleySlave.this.clock.getTimeMillis());	//debug
+					System.out.println("Ajustou relogio em "+offset+" tempo real: "+ sdf.format(new Date(System.currentTimeMillis())) + " relogio: "+BerkeleySlave.this.clock.getTimeMillis());	//debug
 					
 				
 				}
