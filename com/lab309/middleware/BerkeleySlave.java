@@ -18,11 +18,10 @@ public class BerkeleySlave {
 	private UDPServer requestServer, syncServer;
 	private BullyElector elector;
 	
-	public BerkeleySlave (int syncPort, int monitorPort, long maxInactivityInterval, Clock clock) {
+	public BerkeleySlave (int syncPort, Clock clock) {
 		this.syncing = false;
 		this.port = syncPort;
 		this.clock = clock;
-		this.elector = new BullyElector(monitorPort, maxInactivityInterval, clock);
 	}
 	
 	public void startSyncing () {
